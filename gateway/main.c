@@ -9,7 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -30,24 +32,23 @@ static int _buf[BUF_SIZE];
 #define LOG_DEBUG(format, ...)
 #endif
 
-
-void error_exit(const char* msg)
+static void _error_exit(const char* msg)
 {
     perror(msg);
     exit(EXIT_FAILURE);
 }
 
-int open_serial_port()
+static int _open_serial_port()
 {
     int fd = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd<0) {
-        error_exit("Could not open serial port " SERIAL_PORT);
+        _error_exit("Could not open serial port " SERIAL_PORT);
     }
     fcntl(fd, F_SETFL, 0);
 
     struct termios options;
     if (tcgetattr (fd, &options) != 0) {
-        error_exit("Could not get TTY attribs");
+        _error_exit("Could not get TTY attribs");
     }
 
     cfsetispeed (&options, B115200);
@@ -74,13 +75,13 @@ int open_serial_port()
     options.c_cc[VMIN] = 1;
 
     if (tcsetattr (fd, TCSANOW, &options) != 0) {
-        error_exit("Could not set TTY attribs");
+        _error_exit("Could not set TTY attribs");
     }
 
     return fd;
 }
 
-void  _close_connectionfd()
+static void  _close_connectionfd()
 {
     if (_connection_fd >= 0) {
         fprintf(stderr, "Closing existing connection\n");
@@ -94,31 +95,31 @@ void  _close_connectionfd()
 int main()
 {
 
-    _serial_fd = open_serial_port();
+    _serial_fd = _open_serial_port();
 
     // Create listening socket
     int listen_sock;
     struct sockaddr_in name;
     listen_sock = socket (PF_INET, SOCK_STREAM, 0);
     if (listen_sock < 0) {
-        error_exit("socket");
+        _error_exit("socket");
     }
 
     int enable = 1;
     if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR,
                    &enable, sizeof(int)) < 0) {
-        error_exit("setsockopt(SO_REUSEADDR) failed");
+        _error_exit("setsockopt(SO_REUSEADDR) failed");
     }
 
     name.sin_family = AF_INET;
     name.sin_port = htons (8888);
     name.sin_addr.s_addr = htonl (INADDR_ANY);
     if (bind (listen_sock, (struct sockaddr *) &name, sizeof (name)) < 0) {
-        error_exit("bind");
+        _error_exit("bind");
     }
 
     if (listen (listen_sock, 1) < 0) {
-        error_exit("listen");
+        _error_exit("listen");
     }
 
     FD_ZERO (&_master_read_set);
@@ -129,14 +130,14 @@ int main()
     {
         fd_set read_fd_set = _master_read_set;
         if (select (FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0) {
-            error_exit("select");
+            _error_exit("select");
         }
 
         for (i = 0; i < FD_SETSIZE; ++i) {
             if (FD_ISSET (i, &read_fd_set)) {
                 if (i==listen_sock) {
                     struct sockaddr_in clientname;
-                    int size = sizeof (clientname);
+                    socklen_t size = sizeof (clientname);
                     int new = accept (listen_sock,
                                       (struct sockaddr *) &clientname, &size);
                     if (new < 0) {
@@ -152,7 +153,7 @@ int main()
                 } else if (i==_serial_fd) {
                     ssize_t len = read(_serial_fd, _buf, BUF_SIZE);
                     if (len<=0) {
-                        error_exit("read serial");
+                        _error_exit("read serial");
                     }
                     LOG_DEBUG("SERIAL_READ: %d bytes", len);
                     if (_connection_fd >= 0) {
@@ -168,7 +169,7 @@ int main()
                     } else {
                         LOG_DEBUG("   TCP_READ: %d bytes", len);
                         if (write(_serial_fd, _buf, len) < 0) {
-                            error_exit("write serial");
+                            _error_exit("write serial");
                         }
                     }
                 }
