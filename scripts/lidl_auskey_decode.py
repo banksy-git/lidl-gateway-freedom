@@ -58,6 +58,6 @@ for n in range(2):
 cipher = AES.new(kek, AES.MODE_ECB)
 auskey = cipher.decrypt(encoded_key)
 
-print("Auskey:", auskey)
-print("Root password:", auskey[-8:])
+print("Auskey:", auskey.decode("ascii"))
+print("Root password:", auskey[-8:].decode("ascii"))
 
