@@ -1,4 +1,4 @@
-CC=../rtl819x/toolchain/rsdk-4.4.7-4181-EB-2.6.30-0.9.30-m32u-140129/bin/mips-linux-gcc
+CC=/mnt/tmp/opt/realtek/rtl819x/toolchain/rsdk-4.4.7-4181-EB-2.6.30-0.9.30-m32u-140129/bin/mips-linux-gcc
 
 build:
 		$(CC) -static main.c -o serialgateway

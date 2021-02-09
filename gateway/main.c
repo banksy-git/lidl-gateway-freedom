@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
@@ -31,6 +32,16 @@ static int _buf[BUF_SIZE];
 #else
 #define LOG_DEBUG(format, ...)
 #endif
+
+static void _set_status_led(bool is_on)
+{
+    int fd = open("/proc/led1", O_WRONLY);
+    if (fd < 0) {
+        return;
+    }
+    write(fd, (is_on) ? "1\n" : "0\n", 2);
+    close(fd);
+}
 
 static void _error_exit(const char* msg)
 {
@@ -84,6 +95,7 @@ static int _open_serial_port()
 static void  _close_connectionfd()
 {
     if (_connection_fd >= 0) {
+        _set_status_led(0);
         fprintf(stderr, "Closing existing connection\n");
         shutdown(_connection_fd, SHUT_RDWR);
         close(_connection_fd);
@@ -110,6 +122,7 @@ int main()
                    &enable, sizeof(int)) < 0) {
         _error_exit("setsockopt(SO_REUSEADDR) failed");
     }
+
 
     name.sin_family = AF_INET;
     name.sin_port = htons (8888);
@@ -144,9 +157,15 @@ int main()
                         continue;
                     }
                     _close_connectionfd();
+                    _set_status_led(1);
                     fprintf (stderr,
                          "Connect from host %s\n",
                          inet_ntoa (clientname.sin_addr));
+                    int enable = 1;
+                    if (setsockopt(new, SOL_SOCKET, SO_KEEPALIVE,
+                                   &enable, sizeof(enable)) < 0) {
+                        fprintf (stderr, "Failed to set SO_KEEPALIVE");
+                    }
                     FD_SET (new, &_master_read_set);
                     _connection_fd = new;
 
