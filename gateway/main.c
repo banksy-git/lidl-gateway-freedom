@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -49,7 +50,7 @@ static void _error_exit(const char* msg)
     exit(EXIT_FAILURE);
 }
 
-static int _open_serial_port()
+static int _open_serial_port(bool is_hw_flow_control)
 {
     int fd = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd<0) {
@@ -71,7 +72,9 @@ static int _open_serial_port()
     options.c_cflag &= ~CSTOPB;
     options.c_cflag &= ~CSIZE;
     options.c_cflag |= CS8;
-    options.c_cflag |= CRTSCTS;
+    if (is_hw_flow_control) {
+        options.c_cflag |= CRTSCTS;
+    }
 
     // Raw input and output
     options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
@@ -104,10 +107,32 @@ static void  _close_connectionfd()
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
 
-    _serial_fd = _open_serial_port();
+    bool is_hardware_flow_control = true;
+    uint16_t port = 8888;
+    opterr = 0;
+
+    int c;
+    while ((c = getopt (argc, argv, "fp:")) != -1) {
+        switch(c) {
+            case 'f':
+                is_hardware_flow_control = false;
+                break;
+            case 'p':
+                port = atoi(optarg);
+                break;
+            case '?':
+            default:
+                _error_exit("Unknown args");
+        }
+    }
+
+    fprintf(stderr, "serialgateway: port %d, flow=%s\n",
+            port, (is_hardware_flow_control)?"HW":"sw");
+
+    _serial_fd = _open_serial_port(is_hardware_flow_control);
 
     // Create listening socket
     int listen_sock;
@@ -125,7 +150,7 @@ int main()
 
 
     name.sin_family = AF_INET;
-    name.sin_port = htons (8888);
+    name.sin_port = htons (port);
     name.sin_addr.s_addr = htonl (INADDR_ANY);
     if (bind (listen_sock, (struct sockaddr *) &name, sizeof (name)) < 0) {
         _error_exit("bind");
