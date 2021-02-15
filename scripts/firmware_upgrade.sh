@@ -1,20 +1,19 @@
 #!/bin/bash
 GATEWAY_HOST="$1"
-SSH_PORT="22"
-SOCAT_PORT="8888"
-FIRMWARE_FILE="$2"
-
-if ! bellows -d socket://${GATEWAY_HOST}:${SOCAT_PORT} bootloader | grep -q 'bootloader launched successfully'; then
-  echo "Failed to launch bootloader via Bellows."
-  exit 1
-fi
+SSH_PORT="$2"
+FIRMWARE_FILE="$3"
 
 cat sx | ssh -p${SSH_PORT} root@${GATEWAY_HOST} "cat > /tmp/sx"
 cat ${FIRMWARE_FILE} | ssh -p${SSH_PORT} root@${GATEWAY_HOST} "cat > /tmp/firmware.gbl"
 
 ssh -p${SSH_PORT} root@${GATEWAY_HOST} "
 chmod +x /tmp/sx
-killall serialgateway
+killall -q serialgateway
+stty -F /dev/ttyS1 115200 cs8 -cstopb -parenb -ixon crtscts raw
+echo -en '\x1A\xC0\x38\xBC\x7E' > /dev/ttyS1
+echo -en '\x00\x42\x21\xA8\x5C\x2C\xA0\x7E' > /dev/ttyS1
+echo -en '\x81\x60\x59\x7E' > /dev/ttyS1
+echo -en '\x7D\x31\x43\x21\x27\x55\x6E\x90\x7E' > /dev/ttyS1
 stty -F /dev/ttyS1 115200 cs8 -cstopb -parenb -ixon -crtscts raw
 echo -e '1' > /dev/ttyS1
 /tmp/sx /tmp/firmware.gbl < /dev/ttyS1 > /dev/ttyS1
