@@ -11,6 +11,8 @@ More information available here:
 ## Upgrade firmware of the Zigbee module
 By default, the Lidl gateway ships with EmberZNet version 6.5.0.0 which is quite old. It is possible to upgrade this to a newer version using a script provided in this repository.
 
+**WARNING:** For now, it's not guaranteed that you can revert to the stock firmware after flashing the updated one. Please use with caution!
+
 The latest firmware, 6.7.8.0, is available here: https://github.com/grobasoz/zigbee-firmware/raw/master/EFR32%20Series%201/EFR32MG1B-256k/NCP/NCP_UHW_MG1B232_678_PA0-PA1-PB11_PA5-PA4.gbl
 
 The procedure is as follows:
