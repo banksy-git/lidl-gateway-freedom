@@ -19,6 +19,6 @@ The procedure is as follows:
 
 1. Make sure you have followed the initial setup to gain root SSH access on the device.
 2. Download the latest firmware and place it somewhere convenient.
-3. Execute the `firmware_upgrade.sh` script from within the scripts folder. Use the IP address of the gateway, the SSH port, and the filename of the firmware file as parameters, like this: `./firmware_upgrade.sh 192.168.1.4 2222 ncp_firmware.gbl`.
+3. Execute the `firmware_upgrade.sh` script from within the scripts folder. Use the IP address of the gateway, the SSH port, the EZSP version, and the filename of the firmware file as parameters, like this: `./firmware_upgrade.sh 192.168.1.4 2222 V7 ncp_firmware.gbl`. You should not need to change the EZSP version, V7 is the default shipped with the gateway.
 4. When prompted, enter the SSH password for the gateway. This occurs three times.
 5. The new firmware should now be flashed, and the device will reboot. You can check the version with bellows: `bellows -d socket://GATEWAY_IP:8888 info`.
