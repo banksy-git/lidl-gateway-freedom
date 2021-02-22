@@ -20,7 +20,7 @@
 #include <string.h>
 #include <termios.h>
 
-#define SERIAL_PORT "/dev/ttyS1"
+#define DEFAULT_SERIAL_PORT "/dev/ttyS1"
 #define BUF_SIZE 1024
 
 static fd_set _master_read_set;
@@ -50,11 +50,11 @@ static void _error_exit(const char* msg)
     exit(EXIT_FAILURE);
 }
 
-static int _open_serial_port(bool is_hw_flow_control)
+static int _open_serial_port(const char* serial_port, bool is_hw_flow_control)
 {
-    int fd = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_NDELAY);
+    int fd = open(serial_port, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd<0) {
-        _error_exit("Could not open serial port " SERIAL_PORT);
+        _error_exit("Could not open serial port");
     }
     fcntl(fd, F_SETFL, 0);
 
@@ -112,10 +112,11 @@ int main(int argc, char** argv)
 
     bool is_hardware_flow_control = true;
     uint16_t port = 8888;
+    char* serial_port = NULL;
     opterr = 0;
 
     int c;
-    while ((c = getopt (argc, argv, "fp:")) != -1) {
+    while ((c = getopt (argc, argv, "fp:d:")) != -1) {
         switch(c) {
             case 'f':
                 is_hardware_flow_control = false;
@@ -123,16 +124,24 @@ int main(int argc, char** argv)
             case 'p':
                 port = atoi(optarg);
                 break;
+            case 'd':
+                free(serial_port);
+                serial_port = strdup(optarg);
+                break;
             case '?':
             default:
                 _error_exit("Unknown args");
         }
     }
 
-    fprintf(stderr, "serialgateway: port %d, flow=%s\n",
-            port, (is_hardware_flow_control)?"HW":"sw");
+    if (serial_port==NULL) {
+        serial_port = DEFAULT_SERIAL_PORT;
+    }
 
-    _serial_fd = _open_serial_port(is_hardware_flow_control);
+    fprintf(stderr, "serialgateway: serial=%s port %d, flow=%s\n",
+            serial_port, port, (is_hardware_flow_control)?"HW":"sw");
+
+    _serial_fd = _open_serial_port(serial_port, is_hardware_flow_control);
 
     // Create listening socket
     int listen_sock;
