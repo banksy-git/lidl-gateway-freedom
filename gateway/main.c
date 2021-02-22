@@ -216,6 +216,10 @@ int main(int argc, char** argv)
                             _error_exit("write serial");
                         }
                     }
+                } else {
+                     fprintf(stderr, "Bug: Closing orphaned fd %d.\n", i);
+                     close(i);
+                     FD_CLR(i, &_master_read_set);
                 }
 
             }
