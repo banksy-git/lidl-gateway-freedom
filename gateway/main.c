@@ -4,21 +4,15 @@
   Author: Paul Banks [https://paulbanks.org/]
 
 */
-
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <string.h>
-#include <termios.h>
+
+#include "serialgateway.h"
+#include "serial.h"
 
 #define DEFAULT_SERIAL_PORT "/dev/ttyS1"
 #define BUF_SIZE 1024
@@ -50,51 +44,6 @@ static void _error_exit(const char* msg)
     exit(EXIT_FAILURE);
 }
 
-static int _open_serial_port(const char* serial_port, bool is_hw_flow_control)
-{
-    int fd = open(serial_port, O_RDWR | O_NOCTTY | O_NDELAY);
-    if (fd<0) {
-        _error_exit("Could not open serial port");
-    }
-    fcntl(fd, F_SETFL, 0);
-
-    struct termios options;
-    if (tcgetattr (fd, &options) != 0) {
-        _error_exit("Could not get TTY attribs");
-    }
-
-    cfsetispeed (&options, B115200);
-    cfsetospeed (&options, B115200);
-    options.c_cflag |= (CLOCAL | CREAD);
-
-    // 8N1, hardware flow control
-    options.c_cflag &= ~PARENB;
-    options.c_cflag &= ~CSTOPB;
-    options.c_cflag &= ~CSIZE;
-    options.c_cflag |= CS8;
-    if (is_hw_flow_control) {
-        options.c_cflag |= CRTSCTS;
-    }
-
-    // Raw input and output
-    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-
-    // No input or output processing
-    options.c_iflag &= ~(IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK | ISTRIP |
-                         INLCR | IGNCR | ICRNL | IXON | IXOFF | IUCLC | IXANY |
-                         IMAXBEL);
-
-    options.c_oflag &= ~OPOST;
-
-    options.c_cc[VMIN] = 1;
-
-    if (tcsetattr (fd, TCSANOW, &options) != 0) {
-        _error_exit("Could not set TTY attribs");
-    }
-
-    return fd;
-}
-
 static void  _close_connectionfd()
 {
     if (_connection_fd >= 0) {
@@ -112,11 +61,12 @@ int main(int argc, char** argv)
 
     bool is_hardware_flow_control = true;
     uint16_t port = 8888;
-    char* serial_port = NULL;
+    uint32_t baud_bps = 115200;
+    char* serial_port = strdup(DEFAULT_SERIAL_PORT);
     opterr = 0;
 
     int c;
-    while ((c = getopt (argc, argv, "fp:d:")) != -1) {
+    while ((c = getopt (argc, argv, "fp:d:b:")) != -1) {
         switch(c) {
             case 'f':
                 is_hardware_flow_control = false;
@@ -128,20 +78,23 @@ int main(int argc, char** argv)
                 free(serial_port);
                 serial_port = strdup(optarg);
                 break;
+            case 'b':
+                baud_bps = atoi(optarg);
+                break;
             case '?':
             default:
                 _error_exit("Unknown args");
         }
     }
 
-    if (serial_port==NULL) {
-        serial_port = DEFAULT_SERIAL_PORT;
+    fprintf(stderr, "serialgateway: port %d, serial=%s, baud=%d, flow=%s\n",
+            port, serial_port, baud_bps, (is_hardware_flow_control)?"HW":"sw");
+
+    _serial_fd = serial_port_open(serial_port, baud_bps,
+                                  is_hardware_flow_control);
+    if (_serial_fd==-1) {
+        _error_exit("Could not open serial port.");
     }
-
-    fprintf(stderr, "serialgateway: serial=%s port %d, flow=%s\n",
-            serial_port, port, (is_hardware_flow_control)?"HW":"sw");
-
-    _serial_fd = _open_serial_port(serial_port, is_hardware_flow_control);
 
     // Create listening socket
     int listen_sock;
