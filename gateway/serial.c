@@ -89,6 +89,8 @@ int serial_port_open(
     options.c_cflag |= CS8;
     if (is_hw_flow_control) {
         options.c_cflag |= CRTSCTS;
+    } else {
+        options.c_cflag &= ~CRTSCTS;
     }
 
     // Raw input and output
