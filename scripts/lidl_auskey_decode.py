@@ -27,9 +27,12 @@
 # Enjoy root.
 #
 
+import sys
+if sys.version_info[0] < 3:
+    raise RuntimeError("Python 3 is required to run this script!")
 from binascii import unhexlify
-from Crypto.Cipher import AES
 import struct
+from Crypto.Cipher import AES
 
 def _aschar(b):
     return struct.unpack("b", bytes([b & 0xFF]))[0]
