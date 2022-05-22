@@ -1,10 +1,10 @@
-# Lidl Silvercrest SmartKey Root Decoder v0.2
+# Lidl Silvercrest SmartKey Root Decoder v0.3
 #=============================================
 # By Banksy
 #
 # PREREQ's:
 #   Python 3
-#   Install pycrypto Python library
+#   Install cryptography Python library
 #   You need to have opened your device and wired up a serial port to it.
 #
 # INSTRUCTIONS:
@@ -32,7 +32,7 @@ if sys.version_info[0] < 3:
     raise RuntimeError("Python 3 is required to run this script!")
 from binascii import unhexlify
 import struct
-from Crypto.Cipher import AES
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 def _aschar(b):
     return struct.unpack("b", bytes([b & 0xFF]))[0]
@@ -58,9 +58,9 @@ for n in range(2):
     a = input("Encoded aus-key as hex string line %d>" % (n+1))
     encoded_key += _get_bytes(a)
 
-cipher = AES.new(kek, AES.MODE_ECB)
-auskey = cipher.decrypt(encoded_key)
+cipher = Cipher(algorithms.AES(kek), modes.ECB())
+decryptor = cipher.decryptor()
+auskey = decryptor.update(encoded_key) + decryptor.finalize()
 
 print("Auskey:", auskey.decode("ascii"))
 print("Root password:", auskey[-8:].decode("ascii"))
-
