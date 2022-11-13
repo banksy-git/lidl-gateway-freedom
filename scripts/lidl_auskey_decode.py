@@ -33,6 +33,7 @@ if sys.version_info[0] < 3:
 from binascii import unhexlify
 import struct
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 def _aschar(b):
     return struct.unpack("b", bytes([b & 0xFF]))[0]
@@ -58,7 +59,7 @@ for n in range(2):
     a = input("Encoded aus-key as hex string line %d>" % (n+1))
     encoded_key += _get_bytes(a)
 
-cipher = Cipher(algorithms.AES(kek), modes.ECB())
+cipher = Cipher(algorithms.AES(kek), modes.ECB(), default_backend())
 decryptor = cipher.decryptor()
 auskey = decryptor.update(encoded_key) + decryptor.finalize()
 
